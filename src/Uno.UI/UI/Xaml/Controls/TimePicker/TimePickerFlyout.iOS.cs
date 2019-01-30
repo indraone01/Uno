@@ -1,4 +1,5 @@
 ﻿
+using Uno.Disposables;
 using Uno.UI.Common;
 using Windows.UI.Xaml.Data;
 
@@ -6,6 +7,8 @@ namespace Windows.UI.Xaml.Controls
 {
 	public partial class TimePickerFlyout : Flyout
 	{
+		private readonly SerialDisposable _onLoad = new SerialDisposable();
+		private readonly SerialDisposable _onUnloaded = new SerialDisposable();
 		internal protected TimePickerSelector _timeSelector;
 		internal protected TimePickerFlyoutPresenter _timePickerPresenter;
 		internal protected FrameworkElement _headerUntapZone;
@@ -24,7 +27,7 @@ namespace Windows.UI.Xaml.Controls
 			this.Binding(nameof(Time), nameof(Time), Content, BindingMode.TwoWay);
 			this.Binding(nameof(ClockIdentifier), nameof(ClockIdentifier), Content, BindingMode.TwoWay);
 		}
-
+		
 		protected override Control CreatePresenter()
 		{
 			_timePickerPresenter = new TimePickerFlyoutPresenter() { Content = Content };
@@ -36,17 +39,23 @@ namespace Windows.UI.Xaml.Controls
 				AttachAcceptCommand(_timePickerPresenter);
 				AttachDismissCommand(_timePickerPresenter);
 
-				if (_timePickerPresenter != null)
-				{
-					_timePickerPresenter.Loaded -= onLoad;
-				}
+				_onLoad.Disposable = null;
 			}
 
+			void onUnload(object sender, RoutedEventArgs e)
+			{
+				_onUnloaded.Disposable = null;
+				_onLoad.Disposable = null;
+			}
+			
 			if (_timePickerPresenter != null)
 			{
+				_onLoad.Disposable = Disposable.Create(() => _timePickerPresenter.Loaded -= onLoad);
+				_onUnloaded.Disposable = Disposable.Create(() => _timePickerPresenter.Unloaded -= onUnload);
 				_timePickerPresenter.Loaded += onLoad;
+				_timePickerPresenter.Unloaded += onUnload;
 			}
-
+			
 			return _timePickerPresenter;
 		}
 
@@ -54,7 +63,7 @@ namespace Windows.UI.Xaml.Controls
 
 		protected internal override void Open()
 		{
-			_timeSelector?.Initialize();
+			_timeSelector.Initialize();
 
 			//Gobbling pressed tap on the flyout header background so that it doesn't close the flyout popup. 
 			if (_headerUntapZone != null)
@@ -72,14 +81,16 @@ namespace Windows.UI.Xaml.Controls
 				_headerUntapZone.PointerPressed -= OnTap;
 			}
 
-			_timeSelector?.Cancel();
+			_timeSelector.Cancel();
 
 			base.Close();
 		}
 
 		private void AttachAcceptCommand(IFrameworkElement control)
 		{
-			if (control?.FindName("AcceptButton") is Button b && b.Command == null)
+			var b = control.FindName("AcceptButton") as Button;
+
+			if (b != null && b.Command == null)
 			{
 				b.Command = new DelegateCommand(Accept);
 			}
@@ -87,7 +98,9 @@ namespace Windows.UI.Xaml.Controls
 
 		private void AttachDismissCommand(IFrameworkElement control)
 		{
-			if (control?.FindName("DismissButton") is Button b && b.Command == null)
+			var b = control.FindName("DismissButton") as Button;
+
+			if (b != null && b.Command == null)
 			{
 				b.Command = new DelegateCommand(Dismiss);
 			}
@@ -95,7 +108,7 @@ namespace Windows.UI.Xaml.Controls
 
 		private void Accept()
 		{
-			_timeSelector?.SaveTime();
+			_timeSelector.SaveTime();
 			Hide(false);
 		}
 
