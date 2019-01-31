@@ -1,6 +1,8 @@
 ﻿
+using System;
 using Uno.Disposables;
 using Uno.UI.Common;
+using Uno.UI.DataBinding;
 using Windows.UI.Xaml.Data;
 
 namespace Windows.UI.Xaml.Controls
@@ -15,6 +17,7 @@ namespace Windows.UI.Xaml.Controls
 
 		public TimePickerFlyout()
 		{
+
 			_timeSelector = new TimePickerSelector()
 			{
 				BorderThickness = Thickness.Empty,
@@ -27,7 +30,7 @@ namespace Windows.UI.Xaml.Controls
 			this.Binding(nameof(Time), nameof(Time), Content, BindingMode.TwoWay);
 			this.Binding(nameof(ClockIdentifier), nameof(ClockIdentifier), Content, BindingMode.TwoWay);
 		}
-		
+
 		protected override Control CreatePresenter()
 		{
 			_timePickerPresenter = new TimePickerFlyoutPresenter() { Content = Content };
@@ -92,7 +95,8 @@ namespace Windows.UI.Xaml.Controls
 
 			if (b != null && b.Command == null)
 			{
-				b.Command = new DelegateCommand(Accept);
+				var wr = WeakReferencePool.RentWeakReference(this, this);
+				b.Command = new DelegateCommand(() => (wr.Target as TimePickerFlyout)?.Accept());
 			}
 		}
 
@@ -102,7 +106,8 @@ namespace Windows.UI.Xaml.Controls
 
 			if (b != null && b.Command == null)
 			{
-				b.Command = new DelegateCommand(Dismiss);
+				var wr = WeakReferencePool.RentWeakReference(this, this);
+				b.Command = new DelegateCommand(() => (wr.Target as TimePickerFlyout)?.Dismiss());
 			}
 		}
 
